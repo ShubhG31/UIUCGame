@@ -695,10 +695,10 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
         for(j=0;j<4;j++){
             // checks if the status bar graphic buffer is 1
             if(buffer[i*4+j]==0){
-                buf[STATUS_BAR_PLANE*j+i]= 0x20; // sets the character to a color
+                buf[STATUS_BAR_PLANE*j+i]= 0x20; // sets the character to a color red 
             }
             else{
-                buf[STATUS_BAR_PLANE*j+i]= 0x05; // sets the background to a color
+                buf[STATUS_BAR_PLANE*j+i]= 0x05; // sets the background to a color teal
             }
         }
     }
