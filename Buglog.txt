@@ -2,14 +2,21 @@ MP2 Bug Log:
 
 2.1 Bugs:
 
+   (1)  The status bar was showing up in 2 places, at the top of the screen and at the bottom. So the reason of the bug was found, was due to its obvious nature since the image was incorrect
+        When setting up the register CRTC values, to have the status bar visible. The value I calculated for the register was incorrect, I had not doubled the value found. A TA helped by 
+        explaining that you have to double it because that is how the VGA reads it a certain way. It took like 45 minutes to find the bug, fixing that took 1 line since it was only correcting
+        1 value in the 18th register. 
 
-
-   (1)
    (2)  While implementing the status bar, the VGA was reading the buffer for the status bar incorrectly, It was causing the status bar to be discolored,
         and not have anything legible. It was a algorithmic bug. The cause was the text graphic not being correctly mapped to the planar buffer for the VGA display. So the loop
         that maps the VGA Status bar buffer had to be corrected to increment every 4th iterations rather than every single time. Finding this bug took 
         a couple hours, it was hard to figure out how to convert the graphic. It was a 1 line fix.
-    
+
+   (3)  The Status bar last pixel row was incorrect, it was causing the underscore to be slightly incorrect. The fix for this bug was just going to the last row and setting it to the 
+        background color. Finding this bug took 5 mins, and implementing the change also took 5 minutes. It was a simple fix to the bug, since the value in the grpahic buffer was 
+        getting changed randomly. So, it took like 3 lines of code to set the last pixel row to background color.
+
+
 
 
 
