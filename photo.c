@@ -44,6 +44,8 @@
 #include "photo_headers.h"
 #include "world.h"
 
+#define OCTREE_4_LEVEL 4096
+
 
 /* types local to this file (declared in types.h) */
 
@@ -76,6 +78,7 @@ struct image_t {
 };
 
 
+
 /* file-scope variables */
 
 /* 
@@ -86,6 +89,21 @@ struct image_t {
  */
 static const room_t* cur_room = NULL; 
 
+
+/**
+ * 
+ * 
+ */
+
+typedef struct _colors_t
+{
+	/* data */
+	unsigned int count;
+	unsigned int avgR;
+	unsigned int avgG; 
+	unsigned int avgB;
+
+} colors_t;
 
 /* 
  * fill_horiz_buffer
@@ -317,6 +335,8 @@ prep_room (const room_t* r)
 {
     /* Record the current room. */
     cur_room = r;
+	photo_t *room_pic = room_photo(r);
+	fill_entire_palette((unsigned char **)room_pic->palette);
 }
 
 
@@ -396,6 +416,12 @@ read_obj_image (const char* fname)
 }
 
 
+
+// 
+
+int q_sort_compare(const void *A, const void *B ){
+	return (int)(((colors_t*)B)->count - ((colors_t*)A)->count);
+}
 /* 
  * read_photo
  *   DESCRIPTION: Read size and pixel data in 5:6:5 RGB format from a
@@ -410,6 +436,7 @@ read_obj_image (const char* fname)
  *                 on failure
  *   SIDE EFFECTS: dynamically allocates memory for the photo
  */
+
 photo_t*
 read_photo (const char* fname)
 {
@@ -418,7 +445,7 @@ read_photo (const char* fname)
     uint16_t x;		/* index over image columns */
     uint16_t y;		/* index over image rows    */
     uint16_t pixel;	/* one pixel from the file  */
-
+	int s;
     /* 
      * Open the file, allocate the structure, read the header, do some
      * sanity checks on it, and allocate space to hold the photo pixels.
@@ -449,6 +476,8 @@ read_photo (const char* fname)
      * in this order, whereas in memory we store the data in the reverse
      * order (top to bottom).
      */
+	colors_t color[OCTREE_4_LEVEL] = {{0}};
+
     for (y = p->hdr.height; y-- > 0; ) {
 
 	/* Loop over columns from left to right. */
@@ -459,10 +488,11 @@ read_photo (const char* fname)
 	     * return NULL.
 	     */
 	    if (1 != fread (&pixel, sizeof (pixel), 1, in)) {
-		free (p->img);
-		free (p);
-	        (void)fclose (in);
-		return NULL;
+			fprintf(stderr, "1rrors\n");
+			free (p->img);
+			free (p);
+				(void)fclose (in);
+			return NULL;
 
 	    }
 	    /* 
@@ -476,11 +506,148 @@ read_photo (const char* fname)
 	     * the game puts up a photo, you should then change the palette 
 	     * to match the colors needed for that photo.
 	     */
-	    p->img[p->hdr.width * y + x] = (((pixel >> 14) << 4) |
-					    (((pixel >> 9) & 0x3) << 2) |
-					    ((pixel >> 3) & 0x3));
+
+		unsigned int r,g,b;
+
+		r = pixel>>11;
+		g = (pixel>>5) & (0x3F);
+		b = pixel & 0x1F;
+
+		int index = 0;
+		index = ((((r >> 1) << 4) | (g >> 2 )) << 4) | (b>>1);
+
+
+		unsigned int old_count= color[index].count;
+		
+		// the count increases 
+		color[index].count++;
+		
+		// new count 
+		unsigned int new_count = color[index].count;
+
+		// (Average Old * old_count)/(new_count) + new_value/new_count 
+		color[index].avgB = ((color[index].avgB*old_count + (b<<1))/(new_count)) ;
+
+		color[index].avgG = ((color[index].avgG*old_count + g)/(new_count));
+
+		color[index].avgR = ((color[index].avgR*old_count + (r<<1))/(new_count));
+
 	}
     }
+	qsort(color,OCTREE_4_LEVEL, sizeof(colors_t), q_sort_compare);
+
+	int l;
+	
+	colors_t second_level[64] = {{0}};
+	
+	for(l = 128; l<OCTREE_4_LEVEL; l++){
+		unsigned int r,g,b;
+		int index = 0;
+		r = (color[l].avgR>>4) & 0x3;
+		g = (color[l].avgG>>4) & 0x3;
+		b = (color[l].avgB>>4) & 0x3;
+		index = (((r << 2) | g) << 2) | b;
+		// fprintf(stderr, "%x\n",index);
+
+		// if (index >63 || index < 0) {
+		// 	fprintf(stderr, "r:%x, g:%x, b:%x. index:%d\n", r, g, b, index);
+		// }
+
+		unsigned int old_count  = second_level[index].count;
+		unsigned int new_count = color[l].count+old_count;
+		
+		// if(new_count==0){
+			// second_level[index].avgB = color[l].avgB;
+
+			// second_level[index].avgG = color[l].avgG;
+
+			// second_level[index].avgR = color[l].avgR;
+
+			// second_level[index].count = color[l].count;
+		// 	new_count =1; 
+		// }
+		// else{
+		//(Average Old * old_count)/(new_count) + new_value/new_count
+			second_level[index].avgB = ((second_level[index].avgB*old_count)+(color[l].avgB*color[l].count))/(new_count);
+
+			second_level[index].avgG = ((second_level[index].avgG*old_count)+(color[l].avgG*color[l].count))/(new_count);
+
+			second_level[index].avgR = ((second_level[index].avgR*old_count)+(color[l].avgR*color[l].count))/(new_count);
+
+			second_level[index].count = new_count;
+			// fprintf(stderr, "%x\n",new_count);
+
+		// }
+
+
+
+
+
+
+
+	}
+
+	for(l = 0; l<128; l++){
+		p->palette[l][0] = color[l].avgR;
+		p->palette[l][1] = color[l].avgG;
+		p->palette[l][2] = color[l].avgB;
+		// fprintf(stderr,"%x,%x,%x\n",p->palette[l][0],p->palette[l][1],p->palette[l][2]);
+	}
+
+	for(s=128;s<192;s++){
+		p->palette[s][0] = second_level[s-128].avgR;
+		p->palette[s][1] = second_level[s-128].avgG;
+		p->palette[s][2] = second_level[s-128].avgB;
+		// fprintf(stderr,"%x,%x,%x\n",p->palette[l][0],p->palette[l][1],p->palette[l][2]);
+	}
+
+	fseek(in, sizeof(p->hdr), SEEK_SET);
+	// rewind(in);
+	for (y = p->hdr.height; y-- > 0; ) {
+
+	/* Loop over columns from left to right. */
+		for (x = 0; p->hdr.width > x; x++) {
+			if (1 != fread (&pixel, sizeof (pixel), 1, in)) {
+				fprintf(stderr, "errors\n");
+				free (p->img);
+				free (p);
+					(void)fclose (in);
+				return NULL;
+			}
+			int palette_value = 0;
+
+			unsigned int r,g,b;
+
+			r = pixel>>11 & 0x1F;
+			g = (pixel>>5) & (0x3F);
+			b = pixel & 0x1F;
+
+			for(l = 0; l<192 ; l++){
+				
+				unsigned int c_r,c_g,c_b;
+
+				c_r = p->palette[l][0]; 
+				c_g = p->palette[l][1];
+				c_b = p->palette[l][2]; 
+				
+				if(l < 128){
+					if((r>>1)==(c_r>>2) && (g>>2)==(c_g>>2) && (b>>1)==(c_b>>2)){
+						palette_value = l;
+						break;
+					}
+				}
+				else{
+					if((r>>3)==(c_r>>4) && (g>>4)==(c_g>>4) && (b>>3)==(c_b>>4)){
+						palette_value = l;
+						break;
+					}
+				}
+
+			}
+			p->img[p->hdr.width * y + x] = palette_value+64;
+		}
+	}
+	
 
     /* All done.  Return success. */
     (void)fclose (in);

@@ -1,0 +1,9 @@
+MP2 Bug Log:
+
+2.1 Bugs:
+
+    While implementing the status bar, the VGA was reading the buffer for the status bar incorrectly, It was causing the status bar to be discolored,
+    and not have anything legible. The cause was the text graphic not being correctly mapped to the planar buffer for the VGA display. So the loop
+    that maps the VGA Status bar buffer had to be corrected to increment every 4th iterations rather than every single time. 
+
+    

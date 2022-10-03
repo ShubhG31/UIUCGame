@@ -54,12 +54,13 @@
  * Y_DIM   is a vertical screen dimension in pixels.
  */
 #define IMAGE_X_DIM     320   /* pixels; must be divisible by 4             */
-#define IMAGE_Y_DIM     200   /* pixels                                     */
+#define IMAGE_Y_DIM     182   /* pixels                                     */
 #define IMAGE_X_WIDTH   (IMAGE_X_DIM / 4)          /* addresses (bytes)     */
 #define SCROLL_X_DIM	IMAGE_X_DIM                /* full image width      */
 #define SCROLL_Y_DIM    IMAGE_Y_DIM                /* full image width      */
 #define SCROLL_X_WIDTH  (IMAGE_X_DIM / 4)          /* addresses (bytes)     */
 
+#define STATUS_BAR_SIZE  1440	// size of the status bar plane -> (18 * IMAGE_X_DIM)/4
 
 /*
  * NOTES
@@ -127,6 +128,9 @@ extern void set_view_window (int scr_x, int scr_y);
 /* show the logical view window on the monitor */
 extern void show_screen ();
 
+/* show the status bar on the monitor*/
+extern void show_status_bar (const char* s, const char * input, const char * status_msg);
+
 /* clear the video memory in mode X */
 extern void clear_screens ();
 
@@ -135,5 +139,7 @@ extern int draw_horiz_line (int y);
 
 /* draw a vertical line at horizontal pixel x within the logical view window */
 extern int draw_vert_line (int x);
+
+void fill_entire_palette(unsigned char **image);
 
 #endif /* MODEX_H */

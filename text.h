@@ -42,5 +42,7 @@
 
 /* Standard VGA text font. */
 extern unsigned char font_data[256][16];
+/*function that converts the strings into graphics and sets up the plane buffer to be mapped onto the VGA memory*/
+void set_text_to_buffer(const char *string,const char *input, const char * status_msg, unsigned char *buf);
 
 #endif /* TEXT_H */

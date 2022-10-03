@@ -248,6 +248,13 @@ game_loop ()
 	}
 
 	show_screen ();
+	
+	//lock the status messgae from being changed in order to be printed on the status bar  
+	(void)pthread_mutex_lock (&msg_lock);
+	// call function to set up the status bar and print out contents given
+	show_status_bar (room_name(game_info.where),get_typed_command (),status_msg);
+	// unlock the status message so it can be changed  
+	(void)pthread_mutex_unlock (&msg_lock);
 
 	/*
 	 * Wait for tick.  The tick defines the basic timing of our
@@ -717,7 +724,7 @@ show_status (const char* s)
     /* msg_lock critical section starts here. */
     (void)pthread_mutex_lock (&msg_lock);
 
-    /* Copy the new message under the protection of msg_lock. */
+    /* Copy the new message under the protectio n of msg_lock. */
     strncpy (status_msg, s, STATUS_MSG_LEN);
     status_msg[STATUS_MSG_LEN] = '\0';
 

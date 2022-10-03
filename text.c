@@ -36,7 +36,8 @@
 #include <string.h>
 
 #include "text.h"
-
+#define SIZE_STATUS_BAR 320*18
+#define STATUS_BAR_PLANE 1440 
 
 /* 
  * These font data were read out of video memory during text mode and
@@ -561,4 +562,146 @@ unsigned char font_data[256][16] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 };
+/**
+ * set_text_to_buffer
+ * 
+ *    DESCRIPTION: function that sets up the buffer for the status bar given the strings that need to be displayed 
+ * 
+ *    INPUTS: string -- string of the location name of the image 
+ *            input --  string of the typed value of the user displayed on the rightside
+ *            status_msg -- string of the message given due to game mechanics and centered in the status bar 
+ *            buf -- plane formated buffer in order for the VGA memory to read and display  
+ *    
+ *    OUPUTS: NONE
+ * 
+ *    RETURN: NONE
+ * 
+ *    EFFECTS: The planar buffer of the status bar is set m
+ * 
+ */
+void set_text_to_buffer(const char *string,const char* input, const char * status_msg, unsigned char *buf){
+
+    // buffer to hold the graphic version of the strings given 
+   unsigned int buffer[SIZE_STATUS_BAR]; 
+   int j,i,l;
+   //iterate through the graphic buffer to set initially to 1 
+   // goes through the rows of the status bar 
+   for(j=0;j<18;j++){
+        // goes through the columns of the status bar  
+        for(i=0; i<320;i++){
+            // sets the value to 1 
+            buffer[j*320+i] = 1;
+        }
+    }
+    
+    // if the status message is empry then print the location and user input 
+    if(status_msg[0]=='\0'){
+        // sets the the graphic buffer to hold the location on the left side 
+        // goes through the rows of the status bar 
+        for(j=2; j<18;j++){
+            if(j==0 || j>=17) continue;
+            // goes through the string in order for it to be added to the graphic buffer
+            for(i = 0; i<strlen(string); i++ ){
+                // get the ascii value of the character from the string 
+                int ascii = string[i];
+                // get the row of ascii character from the font rom 
+                char row = font_data[ascii][j];
+                // go through the row of the ascii character 
+                for(l = 0; l<8; l++){
+                    // go through every bit in the row and check if its 1
+                    if(row & (0x80>>l)){
+                        // set the graphic buffer to 0 when font rom data shows 1
+                        buffer[j*320+ i*8+l] = 0; // j*320 is the row offset, i+8+l is the column offset 
+                    }
+                }
+            }
+        }
+
+        // inputs the right side input
+        int typed_length= strlen(input); // length of the user input
+
+        // goes through the rows of the status bar 
+        for(j=2; j<18;j++){
+            if(j<=1 || j>=17) continue;
+            // goes through the string in order for it to be added to the graphic buffer
+            for(i = 0; i<strlen(input); i++ ){
+                 // get the ascii value of the character from the string
+                int ascii = input[i];
+                // get the row of ascii character from the font rom 
+                char row = font_data[ascii][j];
+                // go through the row of the ascii character 
+                for(l = 0; l<8; l++){
+                    // go through every bit in the row and check if its 1
+                    if(row & (0x80>>l)){
+                        int row_offset = j*320;  // row offset is set 320 is column size 
+                        int char_col_offset = i*8; // column offset due to the string character position in the string 
+                        buffer[row_offset+ char_col_offset + (320-(typed_length*8))+l] = 0; // 320 - (typed_length*8) gives the starting point from the left side 
+                    }
+                }
+            }
+        }
+    }
+    // when the status message is populated
+    else{
+        // goes through the rows of the status bar
+        for(j=0; j<18;j++){
+            int status_length = strlen(status_msg); // length of the status message 
+            float offset = (40-status_length)/2;    // offset from the end of the status bar to position the user input string
+
+            // checks the length is even to see message is even to center is differently
+            if(status_length%2==0){
+                // goes through the string of status message 
+                for(i = 0; i<strlen(status_msg); i++ ){
+                    // get the ascii value of the character from the string
+                    int ascii = status_msg[i];
+                    // get the row of ascii character from the font rom 
+                    char row = font_data[ascii][j];
+                    // go through the row of the ascii character
+                    for(l = 0; l<8; l++){
+                        // go through every bit in the row and check if its 1
+                        if(row & (0x80>>l)){
+                            // the text graphic buffer is set to 0 
+                            buffer[j*320+ i*8+l+(int)offset*8] = 0; // 320*j is the row offset, i*8*l is the column offset 
+                                                                    // offset is column offset for an even string 
+                        }
+                    }
+                }
+            }
+            // the length is even to see message is odd to center is differently
+            else{
+                // goes through the string of status message
+                for(i = 0; i<strlen(status_msg); i++ ){
+                    // get the ascii value of the character from the string
+                    int ascii = status_msg[i];
+                     // get the row of ascii character from the font rom 
+                    char row = font_data[ascii][j];
+                    // go through the row of the ascii character
+                    for(l = 0; l<8; l++){
+                        // go through every bit in the row and check if its 1
+                        if(row & (0x80>>l)){
+                            // the text graphic buffer is set to 0 
+                            buffer[j*320+ i*8+l+(int)offset*8 + 4] = 0; // offset*8 + 4 calculates the column offset due to the status message
+                                                                        // being odd 
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // sets the plane buffer for the status bar from the graphic buffer
+    for(i=0;i<STATUS_BAR_PLANE;i++){
+        // iterates through the pixels: 0,1,2,3 in order to be put into the planar buffer 
+        for(j=0;j<4;j++){
+            // checks if the status bar graphic buffer is 1
+            if(buffer[i*4+j]==0){
+                buf[STATUS_BAR_PLANE*j+i]= 0x20; // sets the character to a color
+            }
+            else{
+                buf[STATUS_BAR_PLANE*j+i]= 0x05; // sets the background to a color
+            }
+        }
+    }
+}
+
 
