@@ -598,8 +598,8 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
     if(status_msg[0]=='\0'){
         // sets the the graphic buffer to hold the location on the left side 
         // goes through the rows of the status bar 
-        for(j=3; j<18;j++){
-            if(j==0 || j>=17) continue;
+        for(j=0; j<18;j++){
+            // if(j==0 || j>=17) continue;
             // goes through the string in order for it to be added to the graphic buffer
             for(i = 0; i<strlen(string); i++ ){
                 // get the ascii value of the character from the string 
@@ -611,7 +611,7 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
                     // go through every bit in the row and check if its 1
                     if(row & (0x80>>l)){
                         // set the graphic buffer to 0 when font rom data shows 1
-                        buffer[j*320+ i*8+l] = 0; // j*320 is the row offset, i+8+l is the column offset 
+                        buffer[(j*320+320)+ i*8+l] = 0; // j*320 is the row offset + 320 , i+8+l is the column offset 
                     }
                 }
             }
@@ -621,8 +621,8 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
         int typed_length= strlen(input); // length of the user input
 
         // goes through the rows of the status bar 
-        for(j=3; j<18;j++){
-            if(j<=1 || j>=16) continue;
+        for(j=0; j<18;j++){
+            // if(j<=1 || j>=16) continue;
             // goes through the string in order for it to be added to the graphic buffer
             for(i = 0; i<strlen(input); i++ ){
                  // get the ascii value of the character from the string
@@ -633,7 +633,7 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
                 for(l = 0; l<8; l++){
                     // go through every bit in the row and check if its 1
                     if(row & (0x80>>l)){
-                        int row_offset = j*320;  // row offset is set 320 is column size 
+                        int row_offset = j*320 + 320 ;  // row offset is set 320 is column size +320 for the skipped row to align
                         int char_col_offset = i*8; // column offset due to the string character position in the string 
                         buffer[row_offset+ char_col_offset + (320-(typed_length*8))+l] = 0; // 320 - (typed_length*8) gives the starting point from the left side 
                     }
@@ -661,8 +661,8 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
                         // go through every bit in the row and check if its 1
                         if(row & (0x80>>l)){
                             // the text graphic buffer is set to 0 
-                            buffer[j*320+ i*8+l+(int)offset*8] = 0; // 320*j is the row offset, i*8*l is the column offset 
-                                                                    // offset is column offset for an even string 
+                            buffer[(j*320+320)+ i*8+l+(int)offset*8] = 0; // (320*j+320) is the row offset, i*8*l is the column offset 
+                                                                          // offset is column offset for an even string 
                         }
                     }
                 }
