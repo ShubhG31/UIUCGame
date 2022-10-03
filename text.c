@@ -583,6 +583,16 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
 
     // buffer to hold the graphic version of the strings given 
    unsigned int buffer[SIZE_STATUS_BAR]; 
+//    if(strlen(input)<20){
+//         char input_with_underscore[strlen(input)+1];
+//         strcat(input_with_underscore,&input,strlen(input));
+//         strcat(input_with_underscore,'_',1); 
+//    }
+//     else{
+//         char input_with_underscore[strlen(input)];
+//         strcat(input_with_underscore,&input,strlen(input));
+//     }
+//    char input_with_underscore[str]
    int j,i,l;
    // iterate through the graphic buffer to set initially to 1 
    // goes through the rows of the status bar 
@@ -619,7 +629,12 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
 
         // inputs the right side input
         int typed_length= strlen(input); // length of the user input
-
+        char underscore = '_';
+        int underscore_enabled = 0;
+        if(typed_length<20){
+            typed_length+=1;
+            underscore_enabled = 1;
+        }
         // goes through the rows of the status bar 
         for(j=0; j<18;j++){
             // if(j<=1 || j>=16) continue;
@@ -638,6 +653,25 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
                         buffer[row_offset+ char_col_offset + (320-(typed_length*8))+l] = 0; // 320 - (typed_length*8) gives the starting point from the left side 
                     }
                 }
+            }
+        }
+        if(underscore_enabled){
+            for(j=0; j<18;j++){
+            // if(j<=1 || j>=16) continue;
+            // goes through the string in order for it to be added to the graphic buffer
+                    int ascii = underscore;
+                    // get the row of ascii character from the font rom 
+                    char row = font_data[ascii][j];
+                    // go through the row of the ascii character 
+                    for(l = 0; l<8; l++){
+                        // go through every bit in the row and check if its 1
+                        if(row & (0x80>>l)){
+                            int row_offset = j*320 + 320 ;  // row offset is set 320 is column size +320 for the skipped row to align
+                            int char_col_offset = i*8; // column offset due to the string character position in the string 
+                            buffer[row_offset + (320-(8))+l] = 0; // 320 - (typed_length*8) gives the starting point from the left side 
+                        }
+                    }
+                
             }
         }
     }
@@ -687,6 +721,11 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
                 }
             }
         }
+    }
+
+    // loop through the last pixel row of the status bar and makes it the background color just incase
+    for(i=17*320; i<18*320;i++){
+        buffer[i]=1;
     }
 
     // sets the plane buffer for the status bar from the graphic buffer
