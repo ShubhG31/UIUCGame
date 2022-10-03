@@ -576,7 +576,7 @@ unsigned char font_data[256][16] = {
  * 
  *    RETURN: NONE
  * 
- *    EFFECTS: The planar buffer of the status bar is set m
+ *    EFFECTS: The planar buffer of the status bar is set for the VGA 
  * 
  */
 void set_text_to_buffer(const char *string,const char* input, const char * status_msg, unsigned char *buf){
@@ -584,7 +584,7 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
     // buffer to hold the graphic version of the strings given 
    unsigned int buffer[SIZE_STATUS_BAR]; 
    int j,i,l;
-   //iterate through the graphic buffer to set initially to 1 
+   // iterate through the graphic buffer to set initially to 1 
    // goes through the rows of the status bar 
    for(j=0;j<18;j++){
         // goes through the columns of the status bar  
@@ -598,7 +598,7 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
     if(status_msg[0]=='\0'){
         // sets the the graphic buffer to hold the location on the left side 
         // goes through the rows of the status bar 
-        for(j=2; j<18;j++){
+        for(j=3; j<18;j++){
             if(j==0 || j>=17) continue;
             // goes through the string in order for it to be added to the graphic buffer
             for(i = 0; i<strlen(string); i++ ){
@@ -621,8 +621,8 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
         int typed_length= strlen(input); // length of the user input
 
         // goes through the rows of the status bar 
-        for(j=2; j<18;j++){
-            if(j<=1 || j>=17) continue;
+        for(j=3; j<18;j++){
+            if(j<=1 || j>=16) continue;
             // goes through the string in order for it to be added to the graphic buffer
             for(i = 0; i<strlen(input); i++ ){
                  // get the ascii value of the character from the string
