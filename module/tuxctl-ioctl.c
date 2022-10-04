@@ -66,13 +66,20 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 {
     switch (cmd) {
 	case TUX_INIT:
+		
 	case TUX_BUTTONS:
+
 	case TUX_SET_LED:
+
 	case TUX_LED_ACK:
+
 	case TUX_LED_REQUEST:
+
 	case TUX_READ_LED:
+
 	default:
 	    return -EINVAL;
     }
 }
+
 
