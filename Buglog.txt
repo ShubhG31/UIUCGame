@@ -17,7 +17,9 @@ MP2 Bug Log:
         getting changed randomly. So, it took like 3 lines of code to set the last pixel row to background color.
 
 
+2.2 Bugs: 
 
+    
 
 
 
