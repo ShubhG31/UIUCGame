@@ -53,15 +53,15 @@
 #include <termio.h>
 #include <termios.h>
 #include <unistd.h>
-
+#include "module/tuxctl-ioctl.h"
 #include "assert.h"
 #include "input.h"
 
 /* set to 1 and compile this file by itself to test functionality */
-#define TEST_INPUT_DRIVER 0
+#define TEST_INPUT_DRIVER 1
 
 /* set to 1 to use tux controller; otherwise, uses keyboard input */
-#define USE_TUX_CONTROLLER 0
+#define USE_TUX_CONTROLLER 1
 
 
 /* stores original terminal settings */
@@ -115,7 +115,7 @@ init_input ()
 	perror ("tcsetattr to set stdin terminal settings");
 	return -1;
     }
-
+	
     /* Return success. */
     return 0;
 }
@@ -309,7 +309,7 @@ void
 display_time_on_tux (int num_seconds)
 {
 #if (USE_TUX_CONTROLLER != 0)
-#error "Tux controller code is not operational yet."
+// #error "Tux controller code is not operational yet."
 #endif
 }
 
@@ -330,6 +330,14 @@ main ()
 	perror ("ioperm");
 	return 3;
     }
+
+	int fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
+	int ldisc_num = N_MOUSE;
+	ioctl(fd, TIOCSETD, &ldisc_num);
+
+	ioctl(fd, TUX_INIT);
+	// ioctl(fd, TUX_BUTTONS);
+	ioctl(fd, TUX_SET_LED);
 
     init_input ();
     while (1) {

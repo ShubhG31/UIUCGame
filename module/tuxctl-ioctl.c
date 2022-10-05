@@ -64,14 +64,18 @@ int
 tuxctl_ioctl (struct tty_struct* tty, struct file* file, 
 	      unsigned cmd, unsigned long arg)
 {
+			unsigned int display_value;
+		int LED_location;
+		int DECIMAL_location;
+		int i;
     switch (cmd) {
 	case TUX_INIT:
-		
+		MTCP_LED_USR;
 	case TUX_BUTTONS:
 		if(arg == NULL){
 			return -EINVAL;
 		}
-		*(arg) = *arg & 0x00;
+		*((unsigned long *)arg) = *((unsigned long *)arg) & 0x00;
 		return 0;
 
 // Opcode MTCP_LED_SET
@@ -112,48 +116,57 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 //
 // Opcode, led_on, led1_mask, led2_mask, led3_mask, led4_mask, 
 	case TUX_SET_LED:
-		int display_value;
-		display_value = arg & 0xFFFF;
+
+		// unsigned int display_value;
+		// int LED_location;
+		// int DECIMAL_location;
+		// int i;
+		
+		display_value = (arg) & 0xFFFF;
 		
 		
 		//
-		int LED_Location = arg >> 16;
-		LED_Location = LED_Location & 0xF
+		LED_location = (int)arg >> 16;
+		LED_location = LED_location & 0xF;
 
-		int DECIMAL_Location = arg >> 24;
-		DECIMAL_Location = DECIMAL_Location & 0xF;
+		DECIMAL_location = arg >> 24;
+		DECIMAL_location = DECIMAL_location & 0xF;
 
 
-		const char buffer[6] = {0};
+		char buffer[6] = {0};
 
 		buffer[0] = MTCP_LED_SET;
 
-		buffer[1] = LED_Location;
+		buffer[1] = 0xF;//LED_location;
 
+		buffer[2]= 0xF;
+		buffer[3]= 0xF;
+		buffer[4]= 0xF;
+		buffer[5]= 0xF;
 		// LED1 -> far right LED
-		int i=2;
+		i=2;
 		// for(i = 0; i<4; i++){
 		// 	if(LED_Location & 0x01<<i){
 		// 		buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
 		// 	}
 		// }
-		if(LED_Location & 0x01){
-			buffer[i] = display_packet_mapping(display_value & 0xf, DECIMAL_location>>1 & 0x1)
-			i+=1;
-		}
-		if(LED_Location & 0x01<<1){
-			buffer[i] = display_packet_mapping(display_value<<4 & 0xf, DECIMAL_location>>2 & 0x1)
-			i+=1;
-		}
-		if(LED_Location & 0x01<<2){
-			buffer[i] = display_packet_mapping(display_value<<8 & 0xf, DECIMAL_location>>3 & 0x1)
-			i+=1;
-		}
-		if(LED_Location & 0x01<<3){
-			buffer[i] = display_packet_mapping(display_value<<12 & 0xf, DECIMAL_location>>4 & 0x1)
-			i+=1;
-		}
-
+		// if(LED_location & 0x01){
+		// 	buffer[i] = display_packet_mapping(display_value & 0xf, (DECIMAL_location>>1 & 0x1));
+		// 	i+=1;
+		// }
+		// if(LED_location & 0x01<<1){
+		// 	buffer[i] = display_packet_mapping(display_value<<4 & 0xf, DECIMAL_location>>2 & 0x1);
+		// 	i+=1;
+		// }
+		// if(LED_location & 0x01<<2){
+		// 	buffer[i] = display_packet_mapping(display_value<<8 & 0xf, DECIMAL_location>>3 & 0x1);
+		// 	i+=1;
+		// }
+		// if(LED_location & 0x01<<3){
+		// 	buffer[i] = display_packet_mapping(display_value<<12 & 0xf, DECIMAL_location>>4 & 0x1);
+		// 	i+=1;
+		// }
+		tuxctl_ldisc_put(tty, buffer, 6);
 
 		return 0;
 	case TUX_LED_ACK:
