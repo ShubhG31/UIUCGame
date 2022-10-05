@@ -64,7 +64,7 @@ int
 tuxctl_ioctl (struct tty_struct* tty, struct file* file, 
 	      unsigned cmd, unsigned long arg)
 {
-			unsigned int display_value;
+		unsigned int display_value;
 		int LED_location;
 		int DECIMAL_location;
 		int i;
@@ -123,11 +123,12 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 		// int i;
 		
 		display_value = (arg) & 0xFFFF;
-		
+		display_value = 0xF000;
 		
 		//
 		LED_location = (int)arg >> 16;
 		LED_location = LED_location & 0xF;
+
 
 		DECIMAL_location = arg >> 24;
 		DECIMAL_location = DECIMAL_location & 0xF;
@@ -139,17 +140,18 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 
 		buffer[1] = 0xF;//LED_location;
 
-		buffer[2]= 0xF;
-		buffer[3]= 0xF;
-		buffer[4]= 0xF;
-		buffer[5]= 0xF;
 		// LED1 -> far right LED
+		buffer[2]= 0xFF;
+		buffer[3]= 0xFF;
+		buffer[4]= 0xFF;
+		buffer[5]= 0x0;
+		// LED4 -> far left LED
 		i=2;
-		// for(i = 0; i<4; i++){
-		// 	if(LED_Location & 0x01<<i){
-		// 		buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
-		// 	}
-		// }
+		for(i = 0; i<4; i++){
+			if(LED_location & 0x01<<i){
+				buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
+			}
+		}
 		// if(LED_location & 0x01){
 		// 	buffer[i] = display_packet_mapping(display_value & 0xf, (DECIMAL_location>>1 & 0x1));
 		// 	i+=1;
