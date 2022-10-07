@@ -123,7 +123,7 @@ void tuxctl_handle_packet (struct tty_struct* tty, unsigned char* packet)
 ;		byte 2  +-7-----4-+---3---+--2---+--1---+-0--+
 ;			| 1 X X X | right | down | left | up |
 ;			+---------+-------+------+------+----+
-			*******the left and down switch is shown above*******
+			*******the left and down switch is not shown above*******
 **/
 	if(a == MTCP_BIOC_EVENT){
 		button_data = (c & 0xf) << 4 | (b & 0xf);
@@ -206,53 +206,7 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 //
 // Opcode, led_on, led1_mask, led2_mask, led3_mask, led4_mask, 
 	case TUX_SET_LED:
-
-		// unsigned int display_value;
-		// int LED_location;
-		// int DECIMAL_location;
-		// int i;
-		//printk("%08x\n", arg);
-		if(ack == 0){
-			return 0 ;
-		}
-		Old_LED = arg; 
-		display_value = (arg) & 0xFFFF;
-		// display_value = 0xfff0;
-		
-		//
-		LED_location = (int)arg >> 16;
-		LED_location = LED_location & 0xF;
-
-
-		DECIMAL_location = arg >> 24;
-		DECIMAL_location = DECIMAL_location & 0xF;
-
-
-
-		buffer[0] = MTCP_LED_SET;
-
-		buffer[1] = 0xf;//LED_location;
-		// DECIMAL_location = 0xE;
-		// LED_location = 0xb;
-		// buffer[1] = LED_location;
-		// LED1 -> far right LED
-		// buffer[2]= 1;
-		// buffer[3]= 0;
-		// buffer[4]= 0;
-		// buffer[5] = 0;
-		// buffer[2]= display_packet_mapping(0x7, 1);//hex_segments[1] | (0x10 ) ;
-		// LED4 -> far left LED
-		for(i = 0; i<4; i++){
-			if(LED_location & (0x01<<i)){
-				buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
-			}
-			else{
-				buffer[2+i] = 0;
-			}
-		}
-		tuxctl_ldisc_put(tty, buffer, 6);
-
-		return 0;
+		ioctl_LED_help(tty, cmd, arg);
 	case TUX_LED_ACK:
 	case TUX_LED_REQUEST:
 	case TUX_READ_LED:
@@ -384,4 +338,53 @@ int ioctl_INIT_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
 				tuxctl_ldisc_put(tty, buf, 2);
 				return 0;
 		  }
-		
+int ioctl_LED_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
+	unsigned int display_value;
+	int LED_location;
+	int DECIMAL_location;
+	int i;
+	char buffer[6] = {0};
+	
+	if(ack == 0){
+		return 0 ;
+	}
+	Old_LED = arg; 
+	display_value = (arg) & 0xFFFF;
+	// display_value = 0xfff0;
+	
+	//
+	LED_location = (int)arg >> 16;
+	LED_location = LED_location & 0xF;
+
+
+	DECIMAL_location = arg >> 24;
+	DECIMAL_location = DECIMAL_location & 0xF;
+
+
+
+	buffer[0] = MTCP_LED_SET;
+
+	buffer[1] = 0xf;//LED_location;
+	// DECIMAL_location = 0xE;
+	// LED_location = 0xb;
+	// buffer[1] = LED_location;
+	// LED1 -> far right LED
+	// buffer[2]= 1;
+	// buffer[3]= 0;
+	// buffer[4]= 0;
+	// buffer[5] = 0;
+	// buffer[2]= display_packet_mapping(0x7, 1);//hex_segments[1] | (0x10 ) ;
+	// LED4 -> far left LED
+	for(i = 0; i<4; i++){
+		if(LED_location & (0x01<<i)){
+			buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
+		}
+		else{
+			buffer[2+i] = 0;
+		}
+	}
+	tuxctl_ldisc_put(tty, buffer, 6);
+
+	return 0;
+}
+
