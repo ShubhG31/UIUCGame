@@ -61,7 +61,7 @@
 #define TEST_INPUT_DRIVER 1
 
 /* set to 1 to use tux controller; otherwise, uses keyboard input */
-#define USE_TUX_CONTROLLER 1
+#define USE_TUX_CONTROLLER 0
 
 
 /* stores original terminal settings */
@@ -334,10 +334,19 @@ main ()
 	int fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
 	int ldisc_num = N_MOUSE;
 	ioctl(fd, TIOCSETD, &ldisc_num);
-
+	unsigned int button = 0;
 	ioctl(fd, TUX_INIT);
-	// ioctl(fd, TUX_BUTTONS);
-	ioctl(fd, TUX_SET_LED);
+	ioctl(fd, TUX_BUTTONS, &button);
+	// printf('%u',button);
+	ioctl(fd, TUX_SET_LED, 0x040f0123);
+	// printk("%d",button);
+	int i=0;
+	while (1) {
+		// printf("hello\n");
+		ioctl(fd, TUX_SET_LED, 0x040f0123+i);
+		// ioctl(fd, TUX_BUTTONS, &button);
+		i++;
+	}
 
     init_input ();
     while (1) {

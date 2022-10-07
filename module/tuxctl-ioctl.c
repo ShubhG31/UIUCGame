@@ -29,6 +29,31 @@
 #define debug(str, ...) \
 	printk(KERN_DEBUG "%s: " str, __FUNCTION__, ## __VA_ARGS__)
 
+
+// static int hex_segments = 
+
+// [
+// 	0xE7,		// 0
+// 	0x06,		// 1
+// 	0xCB,		// 2
+// 	0x8F,		// 3
+// 	0x2E, 		// 4
+// 	0xAD,
+// 	0xED,
+// 	0x86,
+// 	0xEF,
+// 	0xAF,
+// 	0xEE,
+// 	0x6D,
+// 	0xE0,		// 12 C
+// 	0x4F,		// 13 D
+// 	0xE9, 		// 14 E
+// 	0xE8		// 15 F
+// ];
+
+volatile static  int ack; 
+static unsigned int button_data;
+static unsigned int Old_LED; 
 /************************ Protocol Implementation *************************/
 
 /* tuxctl_handle_packet()
@@ -45,6 +70,65 @@ void tuxctl_handle_packet (struct tty_struct* tty, unsigned char* packet)
     c = packet[2];
 
     /*printk("packet : %x %x %x\n", a, b, c); */
+	if (a==MTCP_ACK) {
+		ack = 1;
+	}
+	if(MTCP_RESET == a){
+		unsigned int display_value;
+		int LED_location;
+		int DECIMAL_location;
+		int i;
+		char buffer[8] = {0};
+		ack = 0;
+		buffer[0] = MTCP_BIOC_ON;
+		buffer[1] = MTCP_LED_USR;
+		tuxctl_ldisc_put(tty, buffer, 2);
+		if(ack==0){
+			return;
+		}
+		display_value = (Old_LED) & 0xFFFF;
+
+		LED_location = (int)Old_LED >> 16;
+		LED_location = LED_location & 0xF;
+
+
+		DECIMAL_location = Old_LED >> 24;
+		DECIMAL_location = DECIMAL_location & 0xF;
+
+
+
+		buffer[0] = MTCP_LED_SET;
+
+		buffer[1] = 0xf;//LED_location;
+		for(i = 0; i<4; i++){
+			if(LED_location & (0x01<<i)){
+				buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
+			}
+			else{
+				buffer[2+i] = 0;
+			}
+		}
+		tuxctl_ldisc_put(tty, buffer, 6);
+	}
+/**
+; MTCP_BIOC_EVT	
+;	Generated when the Button Interrupt-on-change mode is enabled and 
+;	a button is either pressed or released.
+;
+; 	Packet format:
+;		Byte 0 - MTCP_BIOC_EVENT
+;		byte 1  +-7-----4-+-3-+-2-+-1-+---0---+
+;			| 1 X X X | C | B | A | START |
+;			+---------+---+---+---+-------+
+;		byte 2  +-7-----4-+---3---+--2---+--1---+-0--+
+;			| 1 X X X | right | down | left | up |
+;			+---------+-------+------+------+----+
+			*******the left and down switch is shown above*******
+**/
+	if(a == MTCP_BIOC_EVENT){
+		button_data = (c & 0xf) << 4 | (b & 0xf);
+		printk("%x\n",button_data);
+	}
 }
 
 /******** IMPORTANT NOTE: READ THIS BEFORE IMPLEMENTING THE IOCTLS ************
@@ -68,14 +152,20 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 		int LED_location;
 		int DECIMAL_location;
 		int i;
+		char buffer[6] = {0};
     switch (cmd) {
+	
 	case TUX_INIT:
-		MTCP_LED_USR;
+		ioctl_INIT_help(tty, cmd, arg);
+	
 	case TUX_BUTTONS:
-		if(arg == NULL){
+		if(arg == 0){
 			return -EINVAL;
 		}
-		*((unsigned long *)arg) = *((unsigned long *)arg) & 0x00;
+		// *((unsigned long *)arg) = *((unsigned long *)arg) & button_data;
+		// printk('%u\n',button_data);
+		// printk("%x\n",button_data);
+		copy_to_user((unsigned int *)arg, &button_data, 2);
 		return 0;
 
 // Opcode MTCP_LED_SET
@@ -121,9 +211,13 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 		// int LED_location;
 		// int DECIMAL_location;
 		// int i;
-		
+		//printk("%08x\n", arg);
+		if(ack == 0){
+			return 0 ;
+		}
+		Old_LED = arg; 
 		display_value = (arg) & 0xFFFF;
-		display_value = 0xF000;
+		// display_value = 0xfff0;
 		
 		//
 		LED_location = (int)arg >> 16;
@@ -134,49 +228,34 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 		DECIMAL_location = DECIMAL_location & 0xF;
 
 
-		char buffer[6] = {0};
 
 		buffer[0] = MTCP_LED_SET;
 
-		buffer[1] = 0xF;//LED_location;
-
+		buffer[1] = 0xf;//LED_location;
+		// DECIMAL_location = 0xE;
+		// LED_location = 0xb;
+		// buffer[1] = LED_location;
 		// LED1 -> far right LED
-		buffer[2]= 0xFF;
-		buffer[3]= 0xFF;
-		buffer[4]= 0xFF;
-		buffer[5]= 0x0;
+		// buffer[2]= 1;
+		// buffer[3]= 0;
+		// buffer[4]= 0;
+		// buffer[5] = 0;
+		// buffer[2]= display_packet_mapping(0x7, 1);//hex_segments[1] | (0x10 ) ;
 		// LED4 -> far left LED
-		i=2;
 		for(i = 0; i<4; i++){
-			if(LED_location & 0x01<<i){
+			if(LED_location & (0x01<<i)){
 				buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
 			}
+			else{
+				buffer[2+i] = 0;
+			}
 		}
-		// if(LED_location & 0x01){
-		// 	buffer[i] = display_packet_mapping(display_value & 0xf, (DECIMAL_location>>1 & 0x1));
-		// 	i+=1;
-		// }
-		// if(LED_location & 0x01<<1){
-		// 	buffer[i] = display_packet_mapping(display_value<<4 & 0xf, DECIMAL_location>>2 & 0x1);
-		// 	i+=1;
-		// }
-		// if(LED_location & 0x01<<2){
-		// 	buffer[i] = display_packet_mapping(display_value<<8 & 0xf, DECIMAL_location>>3 & 0x1);
-		// 	i+=1;
-		// }
-		// if(LED_location & 0x01<<3){
-		// 	buffer[i] = display_packet_mapping(display_value<<12 & 0xf, DECIMAL_location>>4 & 0x1);
-		// 	i+=1;
-		// }
 		tuxctl_ldisc_put(tty, buffer, 6);
 
 		return 0;
 	case TUX_LED_ACK:
-		return 0;
 	case TUX_LED_REQUEST:
-		return 0;
 	case TUX_READ_LED:
-		return 0;
 	default:
 	    return -EINVAL;
     }
@@ -198,102 +277,111 @@ tuxctl_ioctl (struct tty_struct* tty, struct file* file,
 // 
 int display_packet_mapping(int value, int decimal_enable){
 	int packet = 0;
-
+	value = value & 0xF;
 	if(value == 0){
 		packet = 0xE7; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 1){
+	else if(value == 1){
 		packet = 0x06; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 2){
+	else if(value == 2){
 		packet = 0xCB; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 3){
+	else if(value == 3){
 		packet = 0x8F; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 4){
+	else if(value == 4){
 		packet = 0x2E; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 5){
+	else if(value == 5){
 		packet = 0xAD; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 6){
+	else if(value == 6){
 		packet = 0xED; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 7){
+	else if(value == 7){
 		packet = 0x86; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 8){
+	else if(value == 8){
 		packet = 0xEF; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 9){
+	else if(value == 9){
 		packet = 0xAF; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 10){
+	else if(value == 10){
 		packet = 0xEE; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 11){
+	else if(value == 11){
 		packet = 0x6D; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 12){
-		packet = 0xE0; 
+	else if(value == 12){
+		packet = 0xE1; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 13){
+	else if(value == 13){
 		packet = 0x4F; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 14){
+	else if(value == 14){
 		packet = 0xE9; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
-	if(value == 15){
+	else if(value == 15){
 		packet = 0xE8; 
 		if(decimal_enable){
-			packet = packet | 0x1f;
+			packet = packet | 0x10;
 		}
 	}
 	return packet;
 }
+int ioctl_INIT_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
+				char buf[2];
+				ack = 0;
+				buf[0] = MTCP_BIOC_ON;
+				buf[1] = MTCP_LED_USR;
+				tuxctl_ldisc_put(tty, buf, 2);
+				return 0;
+		  }
+		
