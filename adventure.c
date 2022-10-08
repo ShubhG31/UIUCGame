@@ -69,7 +69,7 @@ static int sanity_check (void);
 
 /* outcome of the game */
 typedef enum {GAME_WON, GAME_QUIT} game_condition_t;
-
+volatile static buttons;
 /* structure used to hold game information */
 typedef struct {
     room_t*      where;		 /* current room for player               */
@@ -169,6 +169,8 @@ static pthread_t status_thread_id;
 static pthread_mutex_t msg_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  msg_cv = PTHREAD_COND_INITIALIZER;
 static char status_msg[STATUS_MSG_LEN + 1] = {'\0'};
+static pthread_mutex_t tux_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t cv;
 
 
 /* 
@@ -269,7 +271,7 @@ game_loop ()
 		exit (3);
 	    }
 	} while (!time_is_after (&cur_time, &tick_time));
-
+	// display_time_on_tux (tick_time.tv_sec);
 	/*
 	 * Advance the tick time.  If we missed one or more ticks completely, 
 	 * i.e., if the current time is already after the time for the next 
@@ -282,6 +284,7 @@ game_loop ()
 		tick_time.tv_usec -= 1000000;
 	    }
 	} while (time_is_after (&cur_time, &tick_time));
+		display_time_on_tux (cur_time.tv_sec-start_time.tv_sec);
 
 	/*
 	 * Handle asynchronous events.  These events use real time rather
@@ -289,7 +292,12 @@ game_loop ()
 	 * off to the nearest tick by definition.
 	 */
 	/* (none right now...) */
-
+	// 			ioctl(pointer, TUX_BUTTONS, & buttons);
+	// pthread_mutex_lock(tux_lock);
+	// 	if(buttons != 0xff){
+	// 		pthread_cond_signal(&cv);
+	// 	}
+	// pthread_mutex_unlock(&tux_lock);
 	/* 
 	 * Handle synchronous events--in this case, only player commands. 
 	 * Note that typed commands that move objects may cause the room

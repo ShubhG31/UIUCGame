@@ -58,14 +58,16 @@
 #include "input.h"
 
 /* set to 1 and compile this file by itself to test functionality */
-#define TEST_INPUT_DRIVER 1
+#define TEST_INPUT_DRIVER 0
 
 /* set to 1 to use tux controller; otherwise, uses keyboard input */
-#define USE_TUX_CONTROLLER 0
+#define USE_TUX_CONTROLLER 1
 
 
 /* stores original terminal settings */
 static struct termios tio_orig;
+static int pointer;
+static int tux_return;
 
 
 /* 
@@ -84,6 +86,10 @@ int
 init_input ()
 {
     struct termios tio_new;
+	int fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
+	int ldisc_num = N_MOUSE;
+	ioctl(fd, TIOCSETD, &ldisc_num);
+	pointer = fd;
 
     /*
      * Set non-blocking mode so that stdin can be read without blocking
@@ -274,12 +280,77 @@ get_command ()
      * Once a direction is pushed, that command remains active
      * until a turn is taken.
      */
+	int button  = 0;
+	ioctl(pointer, TUX_BUTTONS, &button);
+	button = button & 0xff;
+	switch(button){
+		// right
+		case(0x7f):
+			pushed = CMD_RIGHT; 
+			break;
+			//left 
+		case(0xbf):
+			pushed = CMD_LEFT; 
+			break;
+		//right room 
+		case(247):
+			pushed =  CMD_MOVE_RIGHT; 
+			break;
+		// forward room 
+		case(0xfb):
+			pushed =  CMD_ENTER; 
+			break;
+		//left room 
+		case(0xfd):
+			pushed =  CMD_MOVE_LEFT; 
+			break;
+		default:
+			pushed = CMD_NONE;
+			break;
+	}
+
     if (pushed == CMD_NONE) {
         command = CMD_NONE;
     }
+
     return pushed;
 }
-
+// void tux_button_thread(){
+// 	while(1){
+// 		int button  = 0;
+// 		ioctl(pointer, TUX_BUTTONS, &button);
+// 		button = button & 0xff;
+// 		while(button == 0xff){
+// 			pthread_cond_wait(&cv, &tux_lock);
+// 		}
+// 		switch(button){
+// 			// right
+// 			case(0x7f):
+// 				tux_return = CMD_RIGHT; 
+// 				break;
+// 				//left 
+// 			case(0xbf):
+// 				tux_return = CMD_LEFT; 
+// 				break;
+// 			//right room 
+// 			case(247):
+// 				tux_return =  CMD_MOVE_RIGHT; 
+// 				break;
+// 			// forward room 
+// 			case(0xfb):
+// 				tux_return =  CMD_ENTER; 
+// 				break;
+// 			//left room 
+// 			case(0xfd):
+// 				tux_return =  CMD_MOVE_LEFT; 
+// 				break;
+// 			default:
+// 				tux_return = CMD_NONE;
+// 				break;
+// 		}
+// 		pthread_mutex_unlock(&tux_lock);
+// 	}
+// }
 /* 
  * shutdown_input
  *   DESCRIPTION: Cleans up state associated with input control.  Restores
@@ -310,6 +381,26 @@ display_time_on_tux (int num_seconds)
 {
 #if (USE_TUX_CONTROLLER != 0)
 // #error "Tux controller code is not operational yet."
+
+int minutes = num_seconds / 60; 
+int seconds = num_seconds - minutes*60;
+int led_on = 0; 
+led_on = 0x3;
+int decimal = 0x4;
+if(minutes>0){
+	led_on = 0x7;
+	if(minutes>9){
+		led_on = 0xF;
+	}
+}
+int seconds_ones = seconds%10;
+int seconds_tens = seconds/10;
+int arg = 0;
+int minutes_ones = minutes%10;
+int minutes_tens = minutes/10;
+arg = (decimal<<24) | (led_on << 16) | (minutes_tens <<12 )| (minutes_ones << 8) | (seconds_tens << 4)| (seconds_ones & 0xFF);
+ioctl(pointer, TUX_INIT);
+ioctl(pointer, TUX_SET_LED, arg);
 #endif
 }
 
@@ -336,17 +427,22 @@ main ()
 	ioctl(fd, TIOCSETD, &ldisc_num);
 	unsigned int button = 0;
 	ioctl(fd, TUX_INIT);
-	ioctl(fd, TUX_BUTTONS, &button);
+	ioctl(fd, TUX_SET_LED, 0x040f0003);
+	// ioctl(fd, TUX_BUTTONS, &button);
 	// printf('%u',button);
-	ioctl(fd, TUX_SET_LED, 0x040f0123);
+	sleep(1);
+	ioctl(fd, TUX_SET_LED, 0x040eece2);
 	// printk("%d",button);
+
 	int i=0;
-	while (1) {
-		// printf("hello\n");
-		ioctl(fd, TUX_SET_LED, 0x040f0123+i);
-		// ioctl(fd, TUX_BUTTONS, &button);
-		i++;
-	}
+	// while (1) {
+	// // 	// printf("hello\n");
+		// ioctl(fd, TUX_SET_LED, 0x040f0123+i);
+		// sleep(1);
+		ioctl(fd, TUX_BUTTONS, &button);
+		// printf("%x\n",button);
+		// i++;
+	// }
 
     init_input ();
     while (1) {

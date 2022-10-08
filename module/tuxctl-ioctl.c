@@ -30,27 +30,6 @@
 	printk(KERN_DEBUG "%s: " str, __FUNCTION__, ## __VA_ARGS__)
 
 
-// static int hex_segments = 
-
-// [
-// 	0xE7,		// 0
-// 	0x06,		// 1
-// 	0xCB,		// 2
-// 	0x8F,		// 3
-// 	0x2E, 		// 4
-// 	0xAD,
-// 	0xED,
-// 	0x86,
-// 	0xEF,
-// 	0xAF,
-// 	0xEE,
-// 	0x6D,
-// 	0xE0,		// 12 C
-// 	0x4F,		// 13 D
-// 	0xE9, 		// 14 E
-// 	0xE8		// 15 F
-// ];
-
 volatile static  int ack; 
 static unsigned int button_data;
 static unsigned int Old_LED; 
@@ -74,41 +53,10 @@ void tuxctl_handle_packet (struct tty_struct* tty, unsigned char* packet)
 		ack = 1;
 	}
 	if(MTCP_RESET == a){
-		unsigned int display_value;
-		int LED_location;
-		int DECIMAL_location;
-		int i;
-		char buffer[8] = {0};
-		ack = 0;
-		buffer[0] = MTCP_BIOC_ON;
-		buffer[1] = MTCP_LED_USR;
-		tuxctl_ldisc_put(tty, buffer, 2);
-		if(ack==0){
-			return;
-		}
-		display_value = (Old_LED) & 0xFFFF;
-
-		LED_location = (int)Old_LED >> 16;
-		LED_location = LED_location & 0xF;
-
-
-		DECIMAL_location = Old_LED >> 24;
-		DECIMAL_location = DECIMAL_location & 0xF;
-
-
-
-		buffer[0] = MTCP_LED_SET;
-
-		buffer[1] = 0xf;//LED_location;
-		for(i = 0; i<4; i++){
-			if(LED_location & (0x01<<i)){
-				buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
-			}
-			else{
-				buffer[2+i] = 0;
-			}
-		}
-		tuxctl_ldisc_put(tty, buffer, 6);
+		// printk("RESET0000000000000000000000000000000000000000000");
+		ioctl_INIT_help(tty);
+		ioctl_LED_help(tty,Old_LED);
+		
 	}
 /**
 ; MTCP_BIOC_EVT	
@@ -126,8 +74,14 @@ void tuxctl_handle_packet (struct tty_struct* tty, unsigned char* packet)
 			*******the left and down switch is not shown above*******
 **/
 	if(a == MTCP_BIOC_EVENT){
+		int left = (c >> 1) & 0x1;
+		int down = (c >> 2) & 0x1;
+		int up = c & 0x1;
+		int right = (c >> 3) & 0x1; 
+		c = ((right<<3)| (left<<2) | (down << 1)  | up);
 		button_data = (c & 0xf) << 4 | (b & 0xf);
-		printk("%x\n",button_data);
+		// button_data 
+		// printk("%x\n",button_data);
 	}
 }
 
@@ -148,65 +102,56 @@ int
 tuxctl_ioctl (struct tty_struct* tty, struct file* file, 
 	      unsigned cmd, unsigned long arg)
 {
-		unsigned int display_value;
-		int LED_location;
-		int DECIMAL_location;
-		int i;
-		char buffer[6] = {0};
     switch (cmd) {
 	
 	case TUX_INIT:
-		ioctl_INIT_help(tty, cmd, arg);
+		ioctl_INIT_help(tty);
+		return 0;
 	
 	case TUX_BUTTONS:
-		if(arg == 0){
-			return -EINVAL;
-		}
-		// *((unsigned long *)arg) = *((unsigned long *)arg) & button_data;
-		// printk('%u\n',button_data);
-		// printk("%x\n",button_data);
-		copy_to_user((unsigned int *)arg, &button_data, 2);
+		ioctl_Button_help(tty, arg);
 		return 0;
 
-// Opcode MTCP_LED_SET
-//	Set the User-set LED display values. These will be displayed on the
-//	LED displays when the LED display is in USR mode (see the MTCP_LED_USR
-//	and MTCP_LED_CLK commands). The first byte of argument specifies
-//	which of the LED's to set, and also determines how many bytes will
-//	follow - one byte for each led to set.
-//
-// 
-// 	Mapping from 7-segment to bits
-// 	The 7-segment display is:
-//		  _A
-//		F| |B
-//		  -G
-//		E| |C
-//		  -D .dp
-//
-// 	The map from bits to segments is:
-// 
-// 	__7___6___5___4____3___2___1___0__
-// 	| A | E | F | dp | G | C | B | D | 
-// 	+---+---+---+----+---+---+---+---+
-// 
-// 	Arguments: >= 1 bytes
-//		byte 0 - Bitmask of which LED's to set:
+	// Opcode MTCP_LED_SET
+	//	Set the User-set LED display values. These will be displayed on the
+	//	LED displays when the LED display is in USR mode (see the MTCP_LED_USR
+	//	and MTCP_LED_CLK commands). The first byte of argument specifies
+	//	which of the LED's to set, and also determines how many bytes will
+	//	follow - one byte for each led to set.
+	//
+	// 
+	// 	Mapping from 7-segment to bits
+	// 	The 7-segment display is:
+	//		  _A
+	//		F| |B
+	//		  -G
+	//		E| |C
+	//		  -D .dp
+	//
+	// 	The map from bits to segments is:
+	// 
+	// 	__7___6___5___4____3___2___1___0__
+	// 	| A | E | F | dp | G | C | B | D | 
+	// 	+---+---+---+----+---+---+---+---+
+	// 
+	// 	Arguments: >= 1 bytes
+	//		byte 0 - Bitmask of which LED's to set:
 
-//		__7___6___5___4____3______2______1______0___
-// 		| X | X | X | X | LED3 | LED2 | LED1 | LED0 | 
-// 		----+---+---+---+------+------+------+------+
-//
-//	The number of bytes which should follow should be equal to the
-//	number of bits set in byte 0. The bytes should be sent in order of 
-//	increasing LED number. (e.g LED0, LED2, LED3 for a bitmask of 0x0D)
-//
-// 	Response: 1 byte
-//		byte 0 - MTCP_ACK
-//
-// Opcode, led_on, led1_mask, led2_mask, led3_mask, led4_mask, 
+	//		__7___6___5___4____3______2______1______0___
+	// 		| X | X | X | X | LED3 | LED2 | LED1 | LED0 | 
+	// 		----+---+---+---+------+------+------+------+
+	//
+	//	The number of bytes which should follow should be equal to the
+	//	number of bits set in byte 0. The bytes should be sent in order of 
+	//	increasing LED number. (e.g LED0, LED2, LED3 for a bitmask of 0x0D)
+	//
+	// 	Response: 1 byte
+	//		byte 0 - MTCP_ACK
+	//
+	// Opcode, led_on, led1_mask, led2_mask, led3_mask, led4_mask, 
 	case TUX_SET_LED:
-		ioctl_LED_help(tty, cmd, arg);
+		ioctl_LED_help(tty, arg);
+		return 0;
 	case TUX_LED_ACK:
 	case TUX_LED_REQUEST:
 	case TUX_READ_LED:
@@ -330,16 +275,16 @@ int display_packet_mapping(int value, int decimal_enable){
 	}
 	return packet;
 }
-int ioctl_INIT_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
+int ioctl_INIT_help(struct tty_struct* tty){
 				char buf[2];
-				ack = 0;
+				ack = 1;
 				buf[0] = MTCP_BIOC_ON;
 				buf[1] = MTCP_LED_USR;
 				tuxctl_ldisc_put(tty, buf, 2);
 				return 0;
 		  }
-int ioctl_LED_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
-	unsigned int display_value;
+int ioctl_LED_help(struct tty_struct* tty, unsigned long arg){
+	uint16_t display_value;
 	int LED_location;
 	int DECIMAL_location;
 	int i;
@@ -350,17 +295,13 @@ int ioctl_LED_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
 	}
 	Old_LED = arg; 
 	display_value = (arg) & 0xFFFF;
-	// display_value = 0xfff0;
-	
-	//
+
 	LED_location = (int)arg >> 16;
 	LED_location = LED_location & 0xF;
 
 
 	DECIMAL_location = arg >> 24;
 	DECIMAL_location = DECIMAL_location & 0xF;
-
-
 
 	buffer[0] = MTCP_LED_SET;
 
@@ -375,6 +316,7 @@ int ioctl_LED_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
 	// buffer[5] = 0;
 	// buffer[2]= display_packet_mapping(0x7, 1);//hex_segments[1] | (0x10 ) ;
 	// LED4 -> far left LED
+	// printk("%x, %x, %x\n",DECIMAL_location, LED_location, display_value);
 	for(i = 0; i<4; i++){
 		if(LED_location & (0x01<<i)){
 			buffer[2+i] = display_packet_mapping(display_value>>(i*4) & 0xf, DECIMAL_location>>i & 0x1);
@@ -382,9 +324,20 @@ int ioctl_LED_help(struct tty_struct* tty, unsigned cmd, unsigned long arg){
 		else{
 			buffer[2+i] = 0;
 		}
+		// printk("%x\n",buffer[i+2]);
 	}
+	ack = 0;
 	tuxctl_ldisc_put(tty, buffer, 6);
 
 	return 0;
 }
-
+int ioctl_Button_help(struct tty_struct* tty, unsigned long arg){
+	if(arg == 0){
+			return -EINVAL;
+		}
+		// *((unsigned long *)arg) = *((unsigned long *)arg) & button_data;
+		// printk('%u\n',button_data);
+		// printk("%x\n",button_data);
+		copy_to_user((unsigned int *)arg, &button_data, 2);
+		return 0;
+}
