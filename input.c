@@ -61,13 +61,12 @@
 #define TEST_INPUT_DRIVER 0
 
 /* set to 1 to use tux controller; otherwise, uses keyboard input */
-#define USE_TUX_CONTROLLER 1
+#define USE_TUX_CONTROLLER 0
 
 
 /* stores original terminal settings */
 static struct termios tio_orig;
 static int pointer;
-static int tux_return;
 
 
 /* 
@@ -280,38 +279,83 @@ get_command ()
      * Once a direction is pushed, that command remains active
      * until a turn is taken.
      */
-	int button  = 0;
-	ioctl(pointer, TUX_BUTTONS, &button);
-	button = button & 0xff;
-	switch(button){
-		// right
-		case(0x7f):
-			pushed = CMD_RIGHT; 
-			break;
-			//left 
-		case(0xbf):
-			pushed = CMD_LEFT; 
-			break;
-		//right room 
-		case(247):
-			pushed =  CMD_MOVE_RIGHT; 
-			break;
-		// forward room 
-		case(0xfb):
-			pushed =  CMD_ENTER; 
-			break;
-		//left room 
-		case(0xfd):
-			pushed =  CMD_MOVE_LEFT; 
-			break;
-		default:
-			pushed = CMD_NONE;
-			break;
-	}
+	// int button  = 0;
+	// ioctl(pointer, TUX_BUTTONS, &button);
+	// button = button & 0xff;
+	// switch(button){
+	// 	// right
+	// 	case(0x7f):
+	// 		pushed = CMD_RIGHT; 
+	// 		break;
+	// 		//left 
+	// 	case(0xbf):
+	// 		pushed = CMD_LEFT; 
+	// 		break;
+	// 	//right room 
+	// 	case(247):
+	// 		pushed =  CMD_MOVE_RIGHT; 
+	// 		break;
+	// 	// forward room 
+	// 	case(0xfb):
+	// 		pushed =  CMD_ENTER; 
+	// 		break;
+	// 	//left room 
+	// 	case(0xfd):
+	// 		pushed =  CMD_MOVE_LEFT; 
+	// 		break;
+	// 	default:
+	// 		pushed = CMD_NONE;
+	// 		break;
+	// }
 
     if (pushed == CMD_NONE) {
         command = CMD_NONE;
     }
+
+    return pushed;
+}
+
+cmd_t tux_command(){
+	// static cmd_t command = CMD_NONE;
+	cmd_t pushed = CMD_NONE;
+	int button  = 0;
+		ioctl(pointer, TUX_BUTTONS, &button);
+		button = button & 0xff;
+		switch(button){
+			// right
+			case(0x7f):
+				pushed = CMD_RIGHT; 
+				break;
+				//left 
+			case(0xbf):
+				pushed = CMD_LEFT; 
+				break;
+			//right room 
+			case(247):
+				pushed =  CMD_MOVE_RIGHT; 
+				break;
+			// forward room 
+			case(0xfb):
+				pushed =  CMD_ENTER; 
+				break;
+			//left room 
+			case(0xfd):
+				pushed =  CMD_MOVE_LEFT; 
+				break;
+			case(0xdf):
+				pushed = CMD_DOWN;
+				break;
+			case(0xef):
+				pushed = CMD_UP;
+				break;
+			default:
+				pushed = CMD_NONE;
+				break;
+		}
+
+    // if (pushed == CMD_NONE) {
+    //     command = CMD_NONE;
+    // }
 
     return pushed;
 }
@@ -379,7 +423,7 @@ shutdown_input ()
 void
 display_time_on_tux (int num_seconds)
 {
-#if (USE_TUX_CONTROLLER != 0)
+// #if (USE_TUX_CONTROLLER != 0)
 // #error "Tux controller code is not operational yet."
 
 int minutes = num_seconds / 60; 
@@ -401,7 +445,7 @@ int minutes_tens = minutes/10;
 arg = (decimal<<24) | (led_on << 16) | (minutes_tens <<12 )| (minutes_ones << 8) | (seconds_tens << 4)| (seconds_ones & 0xFF);
 ioctl(pointer, TUX_INIT);
 ioctl(pointer, TUX_SET_LED, arg);
-#endif
+// #endif
 }
 
 

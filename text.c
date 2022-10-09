@@ -667,7 +667,6 @@ void set_text_to_buffer(const char *string,const char* input, const char * statu
                         // go through every bit in the row and check if its 1
                         if(row & (0x80>>l)){
                             int row_offset = j*320 + 320 ;  // row offset is set 320 is column size +320 for the skipped row to align
-                            int char_col_offset = i*8; // column offset due to the string character position in the string 
                             buffer[row_offset + (320-(8))+l] = 0; // 320 - (typed_length*8) gives the starting point from the left side 
                         }
                     }

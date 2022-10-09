@@ -69,7 +69,7 @@ static int sanity_check (void);
 
 /* outcome of the game */
 typedef enum {GAME_WON, GAME_QUIT} game_condition_t;
-volatile static buttons;
+volatile static int buttons = 0xff;
 /* structure used to hold game information */
 typedef struct {
     room_t*      where;		 /* current room for player               */
@@ -149,6 +149,7 @@ static int time_is_after (struct timeval* t1, struct timeval* t2);
 /* file-scope variables */
 
 static game_info_t game_info; /* game information */
+cmd_t button_pressed = CMD_NONE;
 
 
 /* 
@@ -169,9 +170,13 @@ static pthread_t status_thread_id;
 static pthread_mutex_t msg_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  msg_cv = PTHREAD_COND_INITIALIZER;
 static char status_msg[STATUS_MSG_LEN + 1] = {'\0'};
-static pthread_mutex_t tux_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_t cv;
 
+// intializing the tux lock and disipline line for tux synchronization
+static pthread_t tux_thread_id;
+static pthread_mutex_t tux_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t Tux_disipline = PTHREAD_COND_INITIALIZER;
+
+static int32_t enter_room = 0;
 
 /* 
  * cancel_status_thread
@@ -188,7 +193,49 @@ cancel_status_thread (void* ignore)
     (void)pthread_cancel (status_thread_id);
 }
 
+void *tux_thread(void *thread){
+	int flag = 0;
+	while(1){
+		pthread_mutex_lock(&tux_lock);
+		while(button_pressed == CMD_NONE ){
+			pthread_cond_wait(&Tux_disipline, &tux_lock);
+			flag = 0;
+		}
+		if(!flag){
+			switch (button_pressed) {
+				case CMD_UP:    move_photo_down (); flag=1; break;
+				case CMD_RIGHT: move_photo_left ();flag=1;   break;
+				case CMD_DOWN:  move_photo_up ();  flag=1;   break;
+				case CMD_LEFT:  move_photo_right (); flag=1; break;
+				case CMD_MOVE_LEFT:   
+				enter_room = (TC_CHANGE_ROOM == 
+						try_to_move_left (&game_info.where));
+						flag=1; 
+				break;
+				case CMD_ENTER:
+				enter_room = (TC_CHANGE_ROOM ==
+						try_to_enter (&game_info.where));
+						flag=1; 
+				break;
+				case CMD_MOVE_RIGHT:
+				enter_room = (TC_CHANGE_ROOM == 
+						try_to_move_right (&game_info.where));
+						flag=1; 
+				break;
+				default: break;
+			}
+		}
+		button_pressed = CMD_NONE;
+		pthread_mutex_unlock(&tux_lock);
+	}
+	return NULL;
+}
 
+static void
+cancel_tux_thread (void* ignore)
+{
+    (void)pthread_cancel (tux_thread_id);
+}
 /* 
  * game_loop
  *   DESCRIPTION: Main event loop for the adventure game.
@@ -208,7 +255,7 @@ game_loop ()
 
     struct timeval cur_time; /* current time (during tick)      */
     cmd_t cmd;               /* command issued by input control */
-    int32_t enter_room;      /* player has changed rooms        */
+    //int32_t enter_room;      /* player has changed rooms        */
 
     /* Record the starting time--assume success. */
     (void)gettimeofday (&start_time, NULL);
@@ -292,6 +339,15 @@ game_loop ()
 	 * off to the nearest tick by definition.
 	 */
 	/* (none right now...) */
+	button_pressed = tux_command();
+	if(button_pressed != CMD_NONE){
+	pthread_mutex_lock(&tux_lock);
+	if(button_pressed!=CMD_NONE){
+		pthread_cond_signal(&Tux_disipline);
+	}
+	pthread_mutex_unlock(&tux_lock);
+	}
+	// button_pressed = 0xff;
 	// 			ioctl(pointer, TUX_BUTTONS, & buttons);
 	// pthread_mutex_lock(tux_lock);
 	// 	if(buttons != 0xff){
@@ -303,7 +359,8 @@ game_loop ()
 	 * Note that typed commands that move objects may cause the room
 	 * to be redrawn.
 	 */
-	
+	else{
+	pthread_mutex_lock(&tux_lock);
 	cmd = get_command ();
 	switch (cmd) {
 	    case CMD_UP:    move_photo_down ();  break;
@@ -330,7 +387,8 @@ game_loop ()
 	    case CMD_QUIT: return GAME_QUIT;
 	    default: break;
 	}
-
+	pthread_mutex_unlock(&tux_lock);
+	}
 	/* If player wins the game, their room becomes NULL. */
 	if (NULL == game_info.where) {
 	    return GAME_WON;
@@ -773,6 +831,16 @@ main ()
 	PANIC ("failed sanity checks");
     }
 
+	/* Create the Tux thread */
+	// tux_thread_id'
+
+	
+	if (0 != pthread_create (&tux_thread_id, NULL, tux_thread, NULL)) {
+        PANIC ("failed to create status thread");
+    }
+    push_cleanup (cancel_tux_thread, NULL); {
+
+
     /* Create status message thread. */
     if (0 != pthread_create (&status_thread_id, NULL, status_thread, NULL)) {
         PANIC ("failed to create status thread");
@@ -798,6 +866,8 @@ main ()
 	} pop_cleanup (1);
 
     } pop_cleanup (1);
+
+	} pop_cleanup (1);
 
     /* Print a message about the outcome. */
     switch (game) {

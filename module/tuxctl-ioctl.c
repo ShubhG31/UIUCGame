@@ -29,6 +29,10 @@
 #define debug(str, ...) \
 	printk(KERN_DEBUG "%s: " str, __FUNCTION__, ## __VA_ARGS__)
 
+int display_packet_mapping(int value, int decimal_enable);
+int ioctl_INIT_help(struct tty_struct* tty);
+int ioctl_LED_help(struct tty_struct* tty, unsigned long arg);
+int ioctl_Button_help(struct tty_struct* tty, unsigned long arg);
 
 volatile static  int ack; 
 static unsigned int button_data;

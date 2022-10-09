@@ -11,8 +11,3 @@
 #define TUX_LED_ACK _IO('E', 0x15)
 
 #endif
-
-int display_packet_mapping(int value, int decimal_enable);
-int ioctl_INIT_help(struct tty_struct* tty);
-int ioctl_LED_help(struct tty_struct* tty, unsigned long arg);
-int ioctl_Button_help(struct tty_struct* tty, unsigned long arg);
