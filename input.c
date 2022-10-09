@@ -63,10 +63,23 @@
 /* set to 1 to use tux controller; otherwise, uses keyboard input */
 #define USE_TUX_CONTROLLER 0
 
+#define RIGHT_Button 0x7f
+#define LEFT_Button 0xbf
+#define UP_Button 0xef
+#define DOWN_Button 0xdf
+
+#define C_Button 247
+#define B_Button 0xfb 
+#define A_button 0xfd
+
 
 /* stores original terminal settings */
 static struct termios tio_orig;
+// file descriptor global pointer
 static int pointer;
+// previous button press 
+volatile static int previous =0;
+
 
 
 /* 
@@ -321,38 +334,42 @@ cmd_t tux_command(){
 	int button  = 0;
 		ioctl(pointer, TUX_BUTTONS, &button);
 		button = button & 0xff;
+		if(previous != button || (button == RIGHT_Button) || (button == LEFT_Button) ||  (button == DOWN_Button) || (button == UP_Button)){
 		switch(button){
 			// right
-			case(0x7f):
+			case(RIGHT_Button):
 				pushed = CMD_RIGHT; 
 				break;
 				//left 
-			case(0xbf):
+			case(LEFT_Button):
 				pushed = CMD_LEFT; 
 				break;
+			//pan down 
+			case(DOWN_Button):
+				pushed = CMD_DOWN;
+				break;
+			// pan up 
+			case(UP_Button):
+				pushed = CMD_UP;
+				break;
 			//right room 
-			case(247):
+			case(C_Button):
 				pushed =  CMD_MOVE_RIGHT; 
 				break;
 			// forward room 
-			case(0xfb):
+			case(B_Button):
 				pushed =  CMD_ENTER; 
 				break;
 			//left room 
-			case(0xfd):
+			case(A_button):
 				pushed =  CMD_MOVE_LEFT; 
-				break;
-			case(0xdf):
-				pushed = CMD_DOWN;
-				break;
-			case(0xef):
-				pushed = CMD_UP;
 				break;
 			default:
 				pushed = CMD_NONE;
 				break;
 		}
-
+		}
+		previous = button;
     // if (pushed == CMD_NONE) {
     //     command = CMD_NONE;
     // }

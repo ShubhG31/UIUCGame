@@ -149,8 +149,7 @@ static int time_is_after (struct timeval* t1, struct timeval* t2);
 /* file-scope variables */
 
 static game_info_t game_info; /* game information */
-cmd_t button_pressed = CMD_NONE;
-
+volatile cmd_t button_pressed = CMD_NONE;
 
 /* 
  * The variables below are used to keep track of the status message helper
