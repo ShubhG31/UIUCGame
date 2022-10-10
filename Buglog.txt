@@ -19,7 +19,23 @@ MP2 Bug Log:
 
 2.2 Bugs: 
 
-    
+     (1)   The image was not in great shape, only using basic colors. The bug was found when the images were shown. You can see the images being of lower
+           quality. The fix was to have a break statement after the index is found in the level 4. So it was going back into the second level palette 
+           even though a color was found in the level 4. It was a one line fix, which took 1 hour to find and fix. 
+
+     (2)   There were black pixels were showing up on the screen. It was cause when the index was being set into the image where caused because level 2 
+           index did not account for the 64 offset of the previous 64 palette values. The bug was found after 2 hours, as it took a while to narrow down
+           where the bug can be in the full octtrees code. It was 1 edit by adding 64 to the index palette.
+
+     (3)   The TUX was not registering the button press. The bug was found when the input.c test harness was not printing any values of the button when 
+           clicking the emulator. The reason for the bug was that the file descriptor was not set, the fix was adding the lines of code provided to us 
+           in the mp2 details. The fix took 3 hours to find, since the other code looked fine. 
+     
+     (4)  The TUX was not reseting correctly, as you press the reset button, the LEDS are suppose to flicker when reset is clicked, since the LEDS are 
+           loaded with previous LED values. The fix was that the ack was not working as intended. The fix was found by a CA who realized that my ack 
+           states were not being intialized to the right state. Finding the bug took 45 mins and implementing the fix took 15 minutes. It only took 5 
+           lines, we just had to go through the logic for the intialization and setting of the LEDS. 
+          
 
 
 
