@@ -98,6 +98,7 @@ int
 init_input ()
 {
     struct termios tio_new;
+	// File Descriptor is set globally when input is intialized 
 	int fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY);
 	int ldisc_num = N_MOUSE;
 	ioctl(fd, TIOCSETD, &ldisc_num);
@@ -328,52 +329,68 @@ get_command ()
     return pushed;
 }
 
+/* 
+ * tux_command 
+ *   DESCRIPTION: Reads a command from the Tux controller. Helps to determine  
+ *   INPUTS: NONE
+ *   OUTPUTS: NONE
+ *   RETURN VALUE: command issued by the TUX controller
+ *   SIDE EFFECTS: NONE
+ */
 cmd_t tux_command(){
 	// static cmd_t command = CMD_NONE;
 	cmd_t pushed = CMD_NONE;
+	
+	// stores the value of the TUX button pressed
 	int button  = 0;
+		// uses the driver to return the value of the button pressed
 		ioctl(pointer, TUX_BUTTONS, &button);
+		// get the last 8 bits of the button
 		button = button & 0xff;
+		// checks the previous button value with current value unless button is LEFT, RIGHT, UP and DOWN
 		if(previous != button || (button == RIGHT_Button) || (button == LEFT_Button) ||  (button == DOWN_Button) || (button == UP_Button)){
-		switch(button){
-			// right
-			case(RIGHT_Button):
-				pushed = CMD_RIGHT; 
-				break;
-				//left 
-			case(LEFT_Button):
-				pushed = CMD_LEFT; 
-				break;
-			//pan down 
-			case(DOWN_Button):
-				pushed = CMD_DOWN;
-				break;
-			// pan up 
-			case(UP_Button):
-				pushed = CMD_UP;
-				break;
-			//right room 
-			case(C_Button):
-				pushed =  CMD_MOVE_RIGHT; 
-				break;
-			// forward room 
-			case(B_Button):
-				pushed =  CMD_ENTER; 
-				break;
-			//left room 
-			case(A_button):
-				pushed =  CMD_MOVE_LEFT; 
-				break;
-			default:
-				pushed = CMD_NONE;
-				break;
+			// switch cased to set command based on the button pressed
+			switch(button){
+				// right button pressed 
+				case(RIGHT_Button):
+					pushed = CMD_RIGHT; 
+					break;
+				//left button pressed 
+				case(LEFT_Button):
+					pushed = CMD_LEFT; 
+					break;
+				//down button pressed 
+				case(DOWN_Button):
+					pushed = CMD_DOWN;
+					break;
+				//up button pressed
+				case(UP_Button):
+					pushed = CMD_UP;
+					break;
+				//right room button pressed
+				case(C_Button):
+					pushed =  CMD_MOVE_RIGHT; 
+					break;
+				// forward room button pressed
+				case(B_Button):
+					pushed =  CMD_ENTER; 
+					break;
+				//left room button pressed
+				case(A_button):
+					pushed =  CMD_MOVE_LEFT; 
+					break;
+				// NO command is pressed 
+				default:
+					pushed = CMD_NONE;
+					break;
+			}
 		}
-		}
+		// previous button is set by current button
 		previous = button;
     // if (pushed == CMD_NONE) {
     //     command = CMD_NONE;
     // }
-
+	// return command type 
     return pushed;
 }
 // void tux_button_thread(){
@@ -443,24 +460,40 @@ display_time_on_tux (int num_seconds)
 // #if (USE_TUX_CONTROLLER != 0)
 // #error "Tux controller code is not operational yet."
 
+//minutes converted by dividing seconds by 60
 int minutes = num_seconds / 60; 
+// seconds converted by current seconds subtracting the minutes*60
 int seconds = num_seconds - minutes*60;
+// variable to turn on the LEDs 
 int led_on = 0; 
+// last 2 LEDS are on for only the seconds  
 led_on = 0x3;
+// decimal set to seperate seconds and minutes 
 int decimal = 0x4;
+// if minutes is greater than 0 then set 3rd led on 
 if(minutes>0){
+	// 3 leds are on 
 	led_on = 0x7;
+	// if minutes is greater than 9, then 4th Led is also on 
 	if(minutes>9){
 		led_on = 0xF;
 	}
 }
+// seconds ones place is seconds%10 
 int seconds_ones = seconds%10;
+// seconds tens place is seconds/10
 int seconds_tens = seconds/10;
+// argument is set to 0 intially 
 int arg = 0;
+// minutes ones place is minutes%10
 int minutes_ones = minutes%10;
+// minutes tens place is minutes/10
 int minutes_tens = minutes/10;
+// argument is made by combining all previous values set 
 arg = (decimal<<24) | (led_on << 16) | (minutes_tens <<12 )| (minutes_ones << 8) | (seconds_tens << 4)| (seconds_ones & 0xFF);
+// tux is initialized 
 ioctl(pointer, TUX_INIT);
+// tux leds are set on with the argument that was made 
 ioctl(pointer, TUX_SET_LED, arg);
 // #endif
 }

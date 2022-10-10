@@ -907,12 +907,13 @@ fill_palette_mode_x ()
 
 /**
  * fill_entire_pallete
- *    DESCRIPTION:  Fills the VGA Palette 
+ *    DESCRIPTION:  Fill VGA palette with necessary colors for the adventure 
+ *                game.  Only the last 192 (of 256) colors are written. 
  * 
- *    INPUTS:
- *    OUTPUTS:
- *    RETURN VALUE:
- *    SIDE EFFECTS: 
+ *    INPUTS: image -- palette double pointer, 2D array
+ *    OUTPUTS:  none
+ *    RETURN VALUE: none
+ *    SIDE EFFECTS: changes the last 192 palette colors 
  * 
  * 
  */

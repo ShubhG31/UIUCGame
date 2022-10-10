@@ -476,6 +476,8 @@ read_photo (const char* fname)
      * in this order, whereas in memory we store the data in the reverse
      * order (top to bottom).
      */
+
+	// set the octree_level four array to 0
 	colors_t color[OCTREE_4_LEVEL] = {{0}};
 
     for (y = p->hdr.height; y-- > 0; ) {
@@ -508,15 +510,16 @@ read_photo (const char* fname)
 	     */
 
 		unsigned int r,g,b;
-
-		r = pixel>>11;
-		g = (pixel>>5) & (0x3F);
-		b = pixel & 0x1F;
+		// set the rgb values to the first 4bits of the RGB by parsing the pixel, which stores the RGB in 5:6:5 order 
+		r = pixel>>11;	// first 4 bits of the Red value
+		g = (pixel>>5) & (0x3F); // first 4 bits of the Green value
+		b = pixel & 0x1F; // first 4 bits of the Blue value
 
 		int index = 0;
+		// index into the Octree array using the first 4 bits of the RGB value 4:4:4 
 		index = ((((r >> 1) << 4) | (g >> 2 )) << 4) | (b>>1);
 
-
+		// store old count with current count in the level 4 index array 
 		unsigned int old_count= color[index].count;
 		
 		// the count increases 
@@ -525,6 +528,7 @@ read_photo (const char* fname)
 		// new count 
 		unsigned int new_count = color[index].count;
 
+		// Average out the RGB values 
 		// (Average Old * old_count)/(new_count) + new_value/new_count 
 		color[index].avgB = ((color[index].avgB*old_count + (b<<1))/(new_count)) ;
 
@@ -534,12 +538,14 @@ read_photo (const char* fname)
 
 	}
     }
+	// sort the Octtree level 4 in decending order 
 	qsort(color,OCTREE_4_LEVEL, sizeof(colors_t), q_sort_compare);
 
 	int l;
-	
+	// intialize the second level of octrees to 0 
 	colors_t second_level[64] = {{0}};
 	
+	// go through the rest of the level 4 array 
 	for(l = 128; l<OCTREE_4_LEVEL; l++){
 		unsigned int r,g,b;
 		int index = 0;
@@ -553,7 +559,9 @@ read_photo (const char* fname)
 		// 	fprintf(stderr, "r:%x, g:%x, b:%x. index:%d\n", r, g, b, index);
 		// }
 
+		// current level 2 count in old count
 		unsigned int old_count  = second_level[index].count;
+		// store new count with current count in the level 4 index array + level 2 count 
 		unsigned int new_count = color[l].count+old_count;
 		
 		// if(new_count==0){
@@ -567,6 +575,7 @@ read_photo (const char* fname)
 		// 	new_count =1; 
 		// }
 		// else{
+		// running average for RBG values 
 		//(Average Old * old_count)/(new_count) + new_value/new_count
 			second_level[index].avgB = ((second_level[index].avgB*old_count)+(color[l].avgB*color[l].count))/(new_count);
 
@@ -586,14 +595,14 @@ read_photo (const char* fname)
 
 
 	}
-
+	// load the first 128 palette from the first 128 values in the octtrees level 4
 	for(l = 0; l<128; l++){
 		p->palette[l][0] = color[l].avgR;
 		p->palette[l][1] = color[l].avgG;
 		p->palette[l][2] = color[l].avgB;
 		// fprintf(stderr,"%x,%x,%x\n",p->palette[l][0],p->palette[l][1],p->palette[l][2]);
 	}
-
+	// load the last 64 palette from the values in the octtrees level 2
 	for(s=128;s<192;s++){
 		p->palette[s][0] = second_level[s-128].avgR;
 		p->palette[s][1] = second_level[s-128].avgG;
@@ -601,6 +610,7 @@ read_photo (const char* fname)
 		// fprintf(stderr,"%x,%x,%x\n",p->palette[l][0],p->palette[l][1],p->palette[l][2]);
 	}
 
+	// rewind the file pointer to 0
 	fseek(in, sizeof(p->hdr), SEEK_SET);
 	// rewind(in);
 	for (y = p->hdr.height; y-- > 0; ) {
@@ -618,25 +628,30 @@ read_photo (const char* fname)
 
 			unsigned int r,g,b;
 
-			r = pixel>>11 & 0x1F;
-			g = (pixel>>5) & (0x3F);
-			b = pixel & 0x1F;
+			// stores the rgb value of the pixel
+			r = pixel>>11 & 0x1F; // gets the 5 bits of the red
+			g = (pixel>>5) & (0x3F); // gets the 6 bits of the green
+			b = pixel & 0x1F; // gets the 5 bits of the blue
 
 			for(l = 0; l<192 ; l++){
 				
 				unsigned int c_r,c_g,c_b;
 
+				// sets the rgb values with current palette values
 				c_r = p->palette[l][0]; 
 				c_g = p->palette[l][1];
 				c_b = p->palette[l][2]; 
 				
+				// if palette is in the first 128 colors
 				if(l < 128){
+					// checks the first 4 bits of RGB with pixel's first 4 bits of RGB
 					if((r>>1)==(c_r>>2) && (g>>2)==(c_g>>2) && (b>>1)==(c_b>>2)){
 						palette_value = l;
 						break;
 					}
 				}
 				else{
+					// checks the first 2 bits of RGB with pixel's first 2 bits of RGB
 					if((r>>3)==(c_r>>4) && (g>>4)==(c_g>>4) && (b>>3)==(c_b>>4)){
 						palette_value = l;
 						break;
@@ -644,6 +659,7 @@ read_photo (const char* fname)
 				}
 
 			}
+			// sets the images index into the palette and offsets it by 64 to account for previous 64 colors
 			p->img[p->hdr.width * y + x] = palette_value+64;
 		}
 	}

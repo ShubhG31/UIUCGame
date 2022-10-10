@@ -195,12 +195,16 @@ cancel_status_thread (void* ignore)
 void *tux_thread(void *thread){
 	int flag = 0;
 	while(1){
+		// lock the tux
 		pthread_mutex_lock(&tux_lock);
+		// while button is not pressed, TUX thread should wait 
 		while(button_pressed == CMD_NONE ){
 			pthread_cond_wait(&Tux_disipline, &tux_lock);
 			flag = 0;
 		}
+		// if flag is 0, then go set command
 		if(!flag){
+			// check the button_pressed command to select the game logic
 			switch (button_pressed) {
 				case CMD_UP:    move_photo_down (); flag=1; break;
 				case CMD_RIGHT: move_photo_left ();flag=1;   break;
@@ -224,7 +228,9 @@ void *tux_thread(void *thread){
 				default: break;
 			}
 		}
+		// set button_pressed to CMD_NONE to make button to not pressed status 
 		button_pressed = CMD_NONE;
+		// unlock the tux thread 
 		pthread_mutex_unlock(&tux_lock);
 	}
 	return NULL;
@@ -330,6 +336,7 @@ game_loop ()
 		tick_time.tv_usec -= 1000000;
 	    }
 	} while (time_is_after (&cur_time, &tick_time));
+	// call the display time on the TUX
 		display_time_on_tux (cur_time.tv_sec-start_time.tv_sec);
 
 	/*
@@ -338,12 +345,19 @@ game_loop ()
 	 * off to the nearest tick by definition.
 	 */
 	/* (none right now...) */
+
+	// get the button_pressed from tux
 	button_pressed = tux_command();
+	// if button_pressed not on TUX, then lock TUX thread
 	if(button_pressed != CMD_NONE){
+	// lock the tux thread 
 	pthread_mutex_lock(&tux_lock);
+	// check if the tux button is pressed 
 	if(button_pressed!=CMD_NONE){
+		// send signal to tux thread 
 		pthread_cond_signal(&Tux_disipline);
 	}
+	// unlock the tux thread 
 	pthread_mutex_unlock(&tux_lock);
 	}
 	// button_pressed = 0xff;
